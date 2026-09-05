@@ -129,7 +129,7 @@
                     <Label Text="Configure the LLM provider and enter your API key. Credentials are stored securely via encrypted vault." Style="{StaticResource Body}" />
 
                     <Border Style="{StaticResource WorkflowCard}">
-                        <VerticalStackLayout Spacing="18">
+                        <VerticalStackLayout Spacing="15">
                             <VerticalStackLayout Spacing="6">
                                 <Label Text="LLM PROVIDER" Style="{StaticResource FieldLabel}" />
                                 <Border Style="{StaticResource InputShell}">
@@ -159,19 +159,22 @@
                                     </CollectionView>
                                 </Border>
                             </VerticalStackLayout>
-                            <VerticalStackLayout Spacing="6">
-                                <Label Text="API STYLE" Style="{StaticResource FieldLabel}" />
-                                <Border Style="{StaticResource InputShell}">
-                                    <Picker Style="{StaticResource FieldPicker}" ItemsSource="{Binding ApiStyles}" SelectedItem="{Binding ApiStyle}" IsEnabled="{Binding IsApiStyleEditable}" />
-                                </Border>
-                            </VerticalStackLayout>
-                            <VerticalStackLayout Spacing="6">
-                                <Label Text="REQUESTS PER MINUTE" Style="{StaticResource FieldLabel}" />
-                                <Border Style="{StaticResource InputShell}">
-                                    <Entry Style="{StaticResource Field}" Text="{Binding RequestsPerMinute}" Keyboard="Numeric" />
-                                </Border>
-                            </VerticalStackLayout>
-                            <HorizontalStackLayout Spacing="10">
+                            <!-- API Style + RPM are compact values, so they share a row (2:1 ratio; star columns keep it usable if the card shrinks below 720). -->
+                            <Grid ColumnDefinitions="2*,*" ColumnSpacing="16">
+                                <VerticalStackLayout Grid.Column="0" Spacing="6">
+                                    <Label Text="API STYLE" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource InputShell}">
+                                        <Picker Style="{StaticResource FieldPicker}" ItemsSource="{Binding ApiStyles}" SelectedItem="{Binding ApiStyle}" IsEnabled="{Binding IsApiStyleEditable}" />
+                                    </Border>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="6">
+                                    <Label Text="REQUESTS / MIN" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource InputShell}">
+                                        <Entry Style="{StaticResource Field}" Text="{Binding RequestsPerMinute}" Keyboard="Numeric" />
+                                    </Border>
+                                </VerticalStackLayout>
+                            </Grid>
+                            <HorizontalStackLayout Spacing="10" Margin="0,4,0,4">
                                 <CheckBox IsChecked="{Binding UseCache}" />
                                 <Label Text="Reuse cached extractions (skips repeat API calls)" Style="{StaticResource Body}" VerticalOptions="Center" />
                             </HorizontalStackLayout>
@@ -180,9 +183,9 @@
                                 <Border Style="{StaticResource InputShell}">
                                     <Entry Style="{StaticResource Field}" Text="{Binding ApiKey}" IsPassword="True" Placeholder="Paste your API key to store it securely" />
                                 </Border>
-                                <Label Text="{Binding ApiKeyStatus}" Style="{StaticResource Body}" />
+                                <Label Text="{Binding ApiKeyStatus}" Style="{StaticResource Body}" Margin="0,2,0,0" />
                             </VerticalStackLayout>
-                            <Button Text="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveSettingsCommand}" />
+                            <Button Text="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveSettingsCommand}" Margin="0,4,0,0" />
                             <Label Text="{Binding SettingsMessage}" Style="{StaticResource Body}" IsVisible="{Binding SettingsMessage, Converter={StaticResource NotEmpty}}" />
                         </VerticalStackLayout>
                     </Border>
