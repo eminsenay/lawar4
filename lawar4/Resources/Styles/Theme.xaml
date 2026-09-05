@@ -161,6 +161,29 @@
         <Setter Property="HorizontalOptions" Value="Start" />
     </Style>
 
+    <!-- Same "one consistent column" convention as WorkflowCard, sized for the Verify result
+         list (900-960 range) so rows stay scannable instead of stretching page-wide. -->
+    <Style x:Key="VerifyListWidth" TargetType="VerticalStackLayout">
+        <Setter Property="WidthRequest" Value="940" />
+        <Setter Property="MaximumWidthRequest" Value="940" />
+        <Setter Property="HorizontalOptions" Value="Start" />
+    </Style>
+
+    <!-- Verify observation row card: Padding=0 so the left status accent strip (a BoxView in the
+         row's own Grid column 0) can bleed flush to the card edge. Matched rows stay on the quiet
+         default Card border; unresolved rows (NeedsReview=True on ObservationItem) get a colored
+         border on top of the accent strip so they still read as "needs attention" without a full
+         thick glow around every row. -->
+    <Style x:Key="ObservationRow" TargetType="Border" BasedOn="{StaticResource Card}">
+        <Setter Property="Padding" Value="0" />
+        <Style.Triggers>
+            <DataTrigger TargetType="Border" Binding="{Binding NeedsReview}" Value="True">
+                <Setter Property="Stroke" Value="{Binding AccentColor}" />
+                <Setter Property="StrokeThickness" Value="1.5" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Workflow step nav: a thin BoxView under each CompactButton that only lights up (orange)
          on the active step. Each usage adds one DataTrigger bound to the MainViewModel's existing
          IsSettings/IsRoster/... step flags (no duplicate nav state). Border.StrokeThickness is a

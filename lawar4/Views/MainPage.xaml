@@ -337,43 +337,47 @@
                     <Label Text="[ OP-04 / TARGET VERIFICATION ]" Style="{StaticResource Eyebrow}" />
                     <Label Text="Resolve unassigned targets &amp; squad aliases." Style="{StaticResource H2}" />
 
-                    <Border Style="{StaticResource Card}" IsVisible="{Binding Issues.Count, Converter={StaticResource CountToBool}}" BackgroundColor="{StaticResource WarningBg}" Stroke="{StaticResource ConnBusy}">
-                        <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
-                            <Image Source="needs_review_badge.png" WidthRequest="28" HeightRequest="28" VerticalOptions="Start" Margin="0,2,0,0" />
-                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Issues}" Spacing="4" VerticalOptions="Center">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="x:String">
-                                        <Label Text="{Binding .}" FontSize="12" TextColor="{StaticResource WarningText}" />
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
-                    </Border>
+                    <!-- Verify results: narrower than the page/header so rows stay scannable (see VerifyListWidth). -->
+                    <VerticalStackLayout Style="{StaticResource VerifyListWidth}" Spacing="16">
+                        <Border Style="{StaticResource Card}" IsVisible="{Binding Issues.Count, Converter={StaticResource CountToBool}}" BackgroundColor="{StaticResource WarningBg}" Stroke="{StaticResource ConnBusy}">
+                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                                <Image Source="needs_review_badge.png" WidthRequest="28" HeightRequest="28" VerticalOptions="Start" Margin="0,2,0,0" />
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Issues}" Spacing="4" VerticalOptions="Center">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Label Text="{Binding .}" FontSize="12" TextColor="{StaticResource WarningText}" />
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </HorizontalStackLayout>
+                        </Border>
 
-                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Observations}" Spacing="8">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ObservationItem">
-                                <Border BackgroundColor="{StaticResource PanelBg}" Stroke="{Binding AccentColor}" StrokeThickness="2" Padding="16,14">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-                                        <Image Source="{Binding StatusIcon}" WidthRequest="32" HeightRequest="32" VerticalOptions="Center" />
-                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                            <Label Text="{Binding Header}" Style="{StaticResource Eyebrow}" />
-                                            <Label Text="{Binding Name}" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource TextColor}" />
-                                            <Label Text="{Binding Detail}" FontSize="13" TextColor="{StaticResource Muted2}" />
-                                        </VerticalStackLayout>
-                                        <HorizontalStackLayout Grid.Column="2" Spacing="12" VerticalOptions="Center">
-                                            <Label Text="{Binding Matched}" FontAttributes="Bold" TextColor="{StaticResource TextColor}" VerticalOptions="Center" />
-                                            <Button Text="{Binding AssignLabel}" Style="{StaticResource CompactButton}"
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Observations}" Spacing="9">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ObservationItem">
+                                    <Border Style="{StaticResource ObservationRow}">
+                                        <Grid ColumnDefinitions="4,Auto,*,Auto,Auto" MinimumHeightRequest="72">
+                                            <!-- Status accent: quiet green strip for matched rows, orange/red for rows needing review (ObservationRow style adds the border color on top for unresolved rows). -->
+                                            <BoxView Grid.Column="0" BackgroundColor="{Binding AccentColor}" />
+                                            <Image Grid.Column="1" Source="{Binding StatusIcon}" WidthRequest="28" HeightRequest="28" VerticalOptions="Center" Margin="12,13,0,13" />
+                                            <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center" Margin="12,13,10,13">
+                                                <Label Text="{Binding Header}" Style="{StaticResource Eyebrow}" />
+                                                <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource TextColor}" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding Detail}" FontSize="12" TextColor="{StaticResource Muted2}" LineBreakMode="TailTruncation" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="3" Text="{Binding Matched}" FontSize="14" FontAttributes="Bold" TextColor="{StaticResource TextColor}"
+                                                   VerticalOptions="Center" Margin="0,0,10,0" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <Button Grid.Column="4" Text="{Binding AssignLabel}" Style="{StaticResource CompactButton}" VerticalOptions="Center" Margin="0,0,12,0"
                                                     Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.OpenAssignCommand}"
                                                     CommandParameter="{Binding .}" />
-                                        </HorizontalStackLayout>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                        <Label Text="No observations in queue. Ingest screenshots to populate target list." Style="{StaticResource Body}"
+                               IsVisible="{Binding Observations.Count, Converter={StaticResource CountToBool}, ConverterParameter=invert}" />
                     </VerticalStackLayout>
-                    <Label Text="No observations in queue. Ingest screenshots to populate target list." Style="{StaticResource Body}"
-                           IsVisible="{Binding Observations.Count, Converter={StaticResource CountToBool}, ConverterParameter=invert}" />
                 </VerticalStackLayout>
 
                 <!-- ===== Export ===== -->
