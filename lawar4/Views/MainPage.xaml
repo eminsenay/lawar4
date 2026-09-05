@@ -278,7 +278,7 @@
                             <!-- Primary interaction: import surface (real drag-and-drop on Windows; buttons always work) -->
                             <Border x:Name="DropZone" Loaded="DropZone_Loaded"
                                     BackgroundColor="{StaticResource ToggleBg}" Stroke="{StaticResource InputLine}"
-                                    StrokeThickness="2" StrokeDashArray="6,4" StrokeShape="RoundRectangle 6" Padding="24,32">
+                                    StrokeThickness="2" StrokeDashArray="6,4" StrokeShape="RoundRectangle 6" Padding="24,22">
                                 <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
                                     <Label Text="[ DROP SCREENSHOTS HERE ]" Style="{StaticResource Eyebrow}" HorizontalOptions="Center" HorizontalTextAlignment="Center" />
                                     <Label Text="PNG · JPG · JPEG · WEBP · GIF" Style="{StaticResource FieldLabel}" HorizontalOptions="Center" HorizontalTextAlignment="Center" />
@@ -309,11 +309,13 @@
 
                             <BoxView HeightRequest="1" Color="{StaticResource LineColor}" />
 
-                            <!-- Extract: primary action -->
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                <Button Grid.Column="0" Text="{Binding ExtractButtonText}" Style="{StaticResource PrimaryButton}" HorizontalOptions="Fill"
-                                        Command="{Binding ExtractCommand}" IsEnabled="{Binding IsExtracting, Converter={StaticResource Invert}}" />
+                            <!-- Extract: primary action, right-aligned and content-sized so it reads as a
+                                 desktop-scale action rather than a full-width bar; Cancel sits to its left
+                                 during the extracting state. -->
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                                 <Button Grid.Column="1" Text="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelExtractionCommand}" IsVisible="{Binding IsExtracting}" />
+                                <Button Grid.Column="2" Text="{Binding ExtractButtonText}" Style="{StaticResource PrimaryButton}"
+                                        Command="{Binding ExtractCommand}" IsEnabled="{Binding IsExtracting, Converter={StaticResource Invert}}" />
                             </Grid>
                             <ProgressBar Progress="{Binding ExtractionProgress}" IsVisible="{Binding IsExtracting}" ProgressColor="{StaticResource TextColor}" />
                             <Label Text="{Binding ExtractionMessage}" Style="{StaticResource Body}" IsVisible="{Binding ExtractionMessage, Converter={StaticResource NotEmpty}}" />
