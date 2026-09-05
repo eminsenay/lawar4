@@ -8,6 +8,10 @@
     <conv:CountToBoolConverter x:Key="CountToBool" />
 
     <!-- Palette (Tactical Zombie Hunting / Command Center HUD) -->
+    <!-- Border hierarchy (3 levels, reused everywhere instead of ad-hoc stroke colors):
+           structural  = LineColor   -> Card/WorkflowCard/ObservationRow default, dividers
+           interactive = InputLine   -> InputShell, DropZone, dropdown panels
+           attention   = MatchedBorder / NeedsReviewBorder / ErrorText -> state only, never decorative -->
     <Color x:Key="TextColor">#F0F4F8</Color>
     <Color x:Key="BodyBg">#121619</Color>
     <Color x:Key="PanelBg">#1A2026</Color>
@@ -43,13 +47,13 @@
     </Style>
 
     <Style x:Key="H1" TargetType="Label">
-        <Setter Property="FontSize" Value="34" />
+        <Setter Property="FontSize" Value="32" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="TextColor" Value="{StaticResource TextColor}" />
     </Style>
 
     <Style x:Key="H2" TargetType="Label">
-        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontSize" Value="22" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="TextColor" Value="{StaticResource TextColor}" />
     </Style>
@@ -59,11 +63,14 @@
         <Setter Property="TextColor" Value="{StaticResource Muted2}" />
     </Style>
 
+    <!-- Regular weight: field labels are metadata, not primary content (see AGENTS visual-polish
+         pass). Callers that represent an active/current state (e.g. the header status pill)
+         opt back into FontAttributes="Bold" locally. -->
     <Style x:Key="FieldLabel" TargetType="Label">
         <Setter Property="FontFamily" Value="Consolas" />
         <Setter Property="FontSize" Value="11" />
         <Setter Property="CharacterSpacing" Value="1.0" />
-        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontAttributes" Value="None" />
         <Setter Property="TextColor" Value="{StaticResource Muted}" />
     </Style>
 
@@ -72,6 +79,7 @@
         <Setter Property="BackgroundColor" Value="{StaticResource PrimaryBg}" />
         <Setter Property="TextColor" Value="{StaticResource PrimaryText}" />
         <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="CornerRadius" Value="3" />
         <Setter Property="Padding" Value="18,12" />
         <Setter Property="HeightRequest" Value="44" />
@@ -82,13 +90,18 @@
         <Setter Property="BackgroundColor" Value="{StaticResource SecondaryBg}" />
         <Setter Property="TextColor" Value="{StaticResource SecondaryText}" />
         <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="CornerRadius" Value="3" />
         <Setter Property="Padding" Value="18,12" />
         <Setter Property="HeightRequest" Value="44" />
         <Setter Property="HorizontalOptions" Value="Start" />
     </Style>
 
+    <!-- Regular weight: used for nav steps and small utility actions (Browse/Assign/toggle),
+         which should read quieter than the bold Primary/SecondaryButton calls to action. The
+         active nav step opts back into Bold locally alongside its orange DataTrigger. -->
     <Style x:Key="CompactButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+        <Setter Property="FontAttributes" Value="None" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="HeightRequest" Value="40" />
@@ -101,7 +114,7 @@
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="TextColor" Value="{StaticResource TextColor}" />
         <Setter Property="PlaceholderColor" Value="{StaticResource Muted}" />
-        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="HeightRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
@@ -120,7 +133,7 @@
     <Style x:Key="FieldPicker" TargetType="Picker">
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="TextColor" Value="{StaticResource TextColor}" />
-        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="HeightRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
@@ -145,12 +158,14 @@
         <Setter Property="StrokeShape" Value="RoundRectangle 4" />
     </Style>
 
+    <!-- Structural border: quiet 1px neutral stroke, small consistent corner radius (matches
+         InputShell/Button scale) so cards read as calm containers, not attention-grabbing boxes. -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{StaticResource PanelBg}" />
         <Setter Property="Stroke" Value="{StaticResource LineColor}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="Padding" Value="24" />
-        <Setter Property="StrokeShape" Value="Rectangle" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 4" />
     </Style>
 
     <!-- Shared width for the main Setup/Roster/Recon workflow cards so the desktop layout
