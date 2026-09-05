@@ -161,4 +161,30 @@
         <Setter Property="HorizontalOptions" Value="Start" />
     </Style>
 
+    <!-- Workflow step nav: a thin BoxView under each CompactButton that only lights up (orange)
+         on the active step. Each usage adds one DataTrigger bound to the MainViewModel's existing
+         IsSettings/IsRoster/... step flags (no duplicate nav state). Border.StrokeThickness is a
+         uniform double in MAUI, so a bottom-only accent needs a separate BoxView, not a Border edge. -->
+    <Style x:Key="NavStepAccent" TargetType="BoxView">
+        <Setter Property="Color" Value="Transparent" />
+        <Setter Property="HeightRequest" Value="3" />
+    </Style>
+
+    <!-- Roster source segmented control: muted by default, brightened on the selected segment. -->
+    <Style x:Key="SegmentAccent" TargetType="BoxView">
+        <Setter Property="Color" Value="Transparent" />
+        <Setter Property="HeightRequest" Value="2" />
+    </Style>
+
+    <Style x:Key="SegmentButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource ToggleBg}" />
+        <Setter Property="TextColor" Value="{StaticResource Muted}" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HeightRequest" Value="40" />
+        <Setter Property="MinimumHeightRequest" Value="40" />
+    </Style>
+
 </ResourceDictionary>
