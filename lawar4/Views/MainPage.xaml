@@ -339,17 +339,31 @@
 
                     <!-- Verify results: narrower than the page/header so rows stay scannable (see VerifyListWidth). -->
                     <VerticalStackLayout Style="{StaticResource VerifyListWidth}" Spacing="16">
-                        <Border Style="{StaticResource Card}" IsVisible="{Binding Issues.Count, Converter={StaticResource CountToBool}}" BackgroundColor="{StaticResource WarningBg}" Stroke="{StaticResource ConnBusy}">
-                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
-                                <Image Source="needs_review_badge.png" WidthRequest="28" HeightRequest="28" VerticalOptions="Start" Margin="0,2,0,0" />
-                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Issues}" Spacing="4" VerticalOptions="Center">
-                                    <BindableLayout.ItemTemplate>
-                                        <DataTemplate x:DataType="x:String">
-                                            <Label Text="{Binding .}" FontSize="12" TextColor="{StaticResource WarningText}" />
-                                        </DataTemplate>
-                                    </BindableLayout.ItemTemplate>
+                        <!-- Extraction/model diagnostics: collapsed-by-default summary so it stays
+                             secondary to the Verify rows below (the actionable, per-observation
+                             review work). Left accent strip mirrors the ObservationRow pattern. -->
+                        <Border Style="{StaticResource Card}" Padding="0" IsVisible="{Binding Issues.Count, Converter={StaticResource CountToBool}}">
+                            <Grid ColumnDefinitions="4,*">
+                                <BoxView Grid.Column="0" BackgroundColor="{StaticResource WarningText}" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="8" Padding="14,10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <HorizontalStackLayout Grid.Column="0" Spacing="8" VerticalOptions="Center">
+                                            <Label Text="[ WARN ]" FontFamily="Consolas" FontSize="11" CharacterSpacing="1.0" FontAttributes="Bold" TextColor="{StaticResource WarningText}" VerticalOptions="Center" />
+                                            <Label Text="{Binding Issues.Count, StringFormat='{0} extraction warnings'}" FontSize="13" TextColor="{StaticResource TextColor}" VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                        <Button Grid.Column="1" Text="{Binding IssuesToggleLabel}" Style="{StaticResource CompactButton}" Command="{Binding ToggleIssuesCommand}" VerticalOptions="Center" />
+                                    </Grid>
+                                    <ScrollView IsVisible="{Binding ShowIssues}" MaximumHeightRequest="260">
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Issues}" Spacing="4">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Label Text="{Binding .}" FontFamily="Consolas" FontSize="12" TextColor="{StaticResource Muted2}" />
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
+                                    </ScrollView>
                                 </VerticalStackLayout>
-                            </HorizontalStackLayout>
+                            </Grid>
                         </Border>
 
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding Observations}" Spacing="9">

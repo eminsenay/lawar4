@@ -466,6 +466,15 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<ObservationItem> Observations { get; } = new();
     public ObservableCollection<string> Issues { get; } = new();
 
+    [ObservableProperty] private bool _showIssues;
+
+    public string IssuesToggleLabel => ShowIssues ? "Hide details" : "Show details";
+
+    partial void OnShowIssuesChanged(bool value) => OnPropertyChanged(nameof(IssuesToggleLabel));
+
+    [RelayCommand]
+    private void ToggleIssues() => ShowIssues = !ShowIssues;
+
     private void RefreshObservations()
     {
         Observations.Clear();
