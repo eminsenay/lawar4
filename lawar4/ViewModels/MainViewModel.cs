@@ -478,16 +478,30 @@ public partial class MainViewModel : ObservableObject
     private void RefreshObservations()
     {
         Observations.Clear();
-        foreach (var obs in _service.Observations
-                     .OrderByDescending(o => o.MatchedMemberId is null)
-                     .ThenBy(o => o.Day)
-                     .ThenBy(o => o.Rank))
+        foreach (var obs in _service.Observations.OrderBy(o => o, ObservationSortOrder.Instance))
         {
             Observations.Add(new ObservationItem(obs));
         }
         Issues.Clear();
         foreach (var issue in _service.BaseIssues)
             Issues.Add(issue);
+    }
+
+    /// <summary>Re-sorts/refreshes a single row in place, avoiding a full BindableLayout rebuild of the (potentially large) list.</summary>
+    private void UpdateObservation(ObservationItem item)
+    {
+        item.Refresh();
+        var index = Observations.IndexOf(item);
+        if (index < 0)
+            return;
+        var newIndex = 0;
+        while (newIndex < Observations.Count && newIndex != index &&
+               ObservationSortOrder.Instance.Compare(Observations[newIndex].Model, item.Model) <= 0)
+            newIndex++;
+        if (newIndex > index)
+            newIndex--;
+        if (newIndex != index)
+            Observations.Move(index, newIndex);
     }
 
     // --- Assign overlay ---
@@ -544,10 +558,11 @@ public partial class MainViewModel : ObservableObject
             return;
         try
         {
-            _service.AssignObservation(_assignTarget.Model, memberId, RememberAlias);
+            var target = _assignTarget;
+            _service.AssignObservation(target.Model, memberId, RememberAlias);
             AssignVisible = false;
             _assignTarget = null;
-            RefreshObservations();
+            UpdateObservation(target);
             RaiseSummary();
         }
         catch (Exception ex)

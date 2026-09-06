@@ -41,3 +41,22 @@ public sealed class ObservationItem : ObservableObject
     private static string TitleCase(string day) =>
         day.Length == 0 ? day : char.ToUpperInvariant(day[0]) + day[1..];
 }
+
+/// <summary>Review-list ordering: unmatched first, then by day/rank. Shared so single-row moves match a full rebuild.</summary>
+public sealed class ObservationSortOrder : IComparer<Observation>
+{
+    public static readonly ObservationSortOrder Instance = new();
+
+    public int Compare(Observation? x, Observation? y)
+    {
+        if (ReferenceEquals(x, y)) return 0;
+        if (x is null) return -1;
+        if (y is null) return 1;
+
+        var cmp = (y.MatchedMemberId is null).CompareTo(x.MatchedMemberId is null);
+        if (cmp != 0) return cmp;
+        cmp = string.Compare(x.Day, y.Day, StringComparison.Ordinal);
+        if (cmp != 0) return cmp;
+        return x.Rank.CompareTo(y.Rank);
+    }
+}
