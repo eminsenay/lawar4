@@ -21,7 +21,7 @@ public static class MembersLoader
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, exportUrl);
-            request.Headers.Add("User-Agent", "LastWarWeeklyApp/1.0");
+            request.Headers.Add("User-Agent", "Lawar4/1.0");
             using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);

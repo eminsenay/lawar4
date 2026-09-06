@@ -23,7 +23,7 @@ dotnet build lawar4/lawar4.csproj -c Release   # optimized
 ## Configuration & data storage
 
 - **API key security**: Entered in the Settings step and stored encrypted using Windows `SecureStorage` (DPAPI-backed). It is never written to disk in plain text and never committed.
-- **Application state & cache**: Endpoint settings, roster configuration, confirmed aliases, extraction cache, and avatar reference fingerprints persist in `config.json` and SQLite (`app.sqlite3`) under `%LOCALAPPDATA%\LastWarWeeklyExtractor\`.
+- **Application state & cache**: Endpoint settings, roster configuration, confirmed aliases, extraction cache, and avatar reference fingerprints persist in `config.json` and SQLite (`app.sqlite3`) under `%LOCALAPPDATA%\Lawar4\`.
 - **Provider routing**: The `openai` provider with the `chat` API style uses the official OpenAI .NET SDK. Other endpoints (Gemini OpenAI-compatible endpoints, local models like LM Studio / Ollama, custom servers, or `responses` style) use a direct HTTP client.
 - **Rate limiting & caching**: Includes a configurable request rate limiter (1–30 RPM, default 28 RPM) and SHA-256 content-based caching to avoid re-extracting identical screenshots.
 

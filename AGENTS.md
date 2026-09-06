@@ -42,7 +42,7 @@ Flow: [MauiProgram.cs](lawar4/MauiProgram.cs) (DI) → `MainViewModel` → `Work
 
 ## Data & paths
 
-- Config (readable JSON) and SQLite DB live under `%LOCALAPPDATA%\...\LastWarWeeklyExtractor\` (`config.json`, `app.sqlite3`).
+- Config (readable JSON) and SQLite DB live under `%LOCALAPPDATA%\...\Lawar4\` (`config.json`, `app.sqlite3`).
 - Config stores provider, model, base URL, API style, RPM, cache flag, and roster source — never the API key.
 
 ## Editing guidance

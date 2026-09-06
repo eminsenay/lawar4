@@ -28,7 +28,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ISecretStore, SecureStorageSecretStore>();
 		builder.Services.AddSingleton(sp =>
 		{
-			var appDir = Path.Combine(FileSystem.AppDataDirectory, "LastWarWeeklyExtractor");
+			var appDir = Path.Combine(FileSystem.AppDataDirectory, "Lawar4");
 			return new WorkflowService(appDir, sp.GetRequiredService<ISecretStore>());
 		});
 		builder.Services.AddSingleton<MainViewModel>();
