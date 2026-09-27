@@ -2,6 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace lawar4.Models;
 
+public enum ExtractionMode
+{
+    Weekly,
+    War
+}
+
 /// <summary>Normalized (0..1000) avatar bounding box over the whole screenshot.</summary>
 public sealed class AvatarBBox
 {

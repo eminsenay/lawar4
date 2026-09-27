@@ -356,7 +356,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _extractionMessage = "";
     [ObservableProperty] private bool _isExtracting;
     [ObservableProperty] private double _extractionProgress;
-    [ObservableProperty] private string _extractButtonText = "Extract";
+    [ObservableProperty] private string _extractButtonText = "Extract weekly scores";
+    [ObservableProperty] private string _extractWarButtonText = "Extract Canyon/Desert war scores";
     [ObservableProperty] private bool _showManualPaths;
 
     public string ManualPathsToggleLabel => ShowManualPaths ? "▾ Advanced / Manual file paths" : "▸ Advanced / Manual file paths";
@@ -415,12 +416,18 @@ public partial class MainViewModel : ObservableObject
         ScreenshotQueue.Clear();
         foreach (var path in _service.ScreenshotPaths)
             ScreenshotQueue.Add(Path.GetFileName(path));
-        ExtractButtonText = $"Extract {_service.ScreenshotPaths.Count}";
+        ExtractButtonText = $"Extract weekly scores ({_service.ScreenshotPaths.Count})";
+        ExtractWarButtonText = $"Extract Canyon/Desert war scores ({_service.ScreenshotPaths.Count})";
         RaiseSummary();
     }
 
     [RelayCommand]
-    private async Task ExtractAsync()
+    private Task ExtractAsync() => RunExtractionAsync(ExtractionMode.Weekly);
+
+    [RelayCommand]
+    private Task ExtractWarAsync() => RunExtractionAsync(ExtractionMode.War);
+
+    private async Task RunExtractionAsync(ExtractionMode mode)
     {
         if (IsExtracting)
             return;
@@ -430,13 +437,15 @@ public partial class MainViewModel : ObservableObject
             ExtractionProgress = update.Total == 0 ? 0 : (double)update.Completed / update.Total;
             var status = update.Cached ? "cached" : update.Error is not null ? $"error: {update.Error}" : $"{update.RowCount} rows";
             ExtractionMessage = $"{update.Completed}/{update.Total} · {Path.GetFileName(update.Path)} · {status}";
-            ExtractButtonText = $"Extracting {update.Completed}/{update.Total}";
+            var label = mode == ExtractionMode.War ? "Extracting war" : "Extracting";
+            ExtractButtonText = mode == ExtractionMode.War ? ExtractButtonText : $"{label} {update.Completed}/{update.Total}";
+            ExtractWarButtonText = mode == ExtractionMode.War ? $"{label} {update.Completed}/{update.Total}" : ExtractWarButtonText;
         });
 
         IsExtracting = true;
         try
         {
-            await _service.StartExtractionAsync(progress, key);
+            await _service.StartExtractionAsync(progress, key, mode);
             ExtractionMessage = "Extraction complete.";
             RefreshObservations();
             RaiseSummary();
@@ -455,7 +464,8 @@ public partial class MainViewModel : ObservableObject
         finally
         {
             IsExtracting = false;
-            ExtractButtonText = $"Extract {_service.ScreenshotPaths.Count}";
+            ExtractButtonText = $"Extract weekly scores ({_service.ScreenshotPaths.Count})";
+            ExtractWarButtonText = $"Extract Canyon/Desert war scores ({_service.ScreenshotPaths.Count})";
         }
     }
 
@@ -578,6 +588,7 @@ public partial class MainViewModel : ObservableObject
     public int ObservationCount => _service.Summary.ObservationCount;
     public int UnmatchedCount => _service.Summary.UnmatchedCount;
     public int ScreenshotCount => _service.Summary.ScreenshotCount;
+    public bool IsWarExtraction => _service.LastExtractionMode == ExtractionMode.War;
 
     private void RaiseSummary()
     {
@@ -585,6 +596,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ObservationCount));
         OnPropertyChanged(nameof(UnmatchedCount));
         OnPropertyChanged(nameof(ScreenshotCount));
+        OnPropertyChanged(nameof(IsWarExtraction));
     }
 
     [RelayCommand]
@@ -594,7 +606,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (_service.Members.Count == 0 || _service.Observations.Count == 0)
             {
-                ExportMessage = "Load members and extract screenshots first.";
+                ExportMessage = "Load members and extract weekly screenshots first.";
                 return;
             }
             var suggested = $"weekly_scores_{DateTime.Now:yyyy-MM-dd}.xlsx";
@@ -602,6 +614,29 @@ public partial class MainViewModel : ObservableObject
             if (target is null)
                 return;
             var path = await _service.ExportAsync(target);
+            ExportMessage = $"Exported to {Path.GetFileName(path)}";
+        }
+        catch (Exception ex)
+        {
+            ExportMessage = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportWarAsync()
+    {
+        try
+        {
+            if (_service.Members.Count == 0 || _service.Observations.Count == 0)
+            {
+                ExportMessage = "Load members and extract war screenshots first.";
+                return;
+            }
+            var suggested = $"war_scores_{DateTime.Now:yyyy-MM-dd}.xlsx";
+            var target = await FileDialogs.SaveXlsxAsync(suggested);
+            if (target is null)
+                return;
+            var path = await _service.ExportWarAsync(target);
             ExportMessage = $"Exported to {Path.GetFileName(path)}";
         }
         catch (Exception ex)

@@ -274,8 +274,8 @@
                 <!-- ===== Screenshots ===== -->
                 <VerticalStackLayout IsVisible="{Binding IsScreenshots}" Spacing="16">
                     <Label Text="[ OP-03 / RECON CAPTURES ]" Style="{StaticResource Eyebrow}" />
-                    <Label Text="Ingest weekly leaderboard screenshots." Style="{StaticResource H2}" />
-                    <Label Text="Add leaderboard screenshots to queue, then trigger vision extraction." Style="{StaticResource Body}" />
+                    <Label Text="Ingest weekly leaderboard and war battle-result screenshots." Style="{StaticResource H2}" />
+                    <Label Text="Add screenshots to the queue, then extract weekly leaderboard scores or Canyon/Desert Storm war scores." Style="{StaticResource Body}" />
 
                     <Border Style="{StaticResource WorkflowCard}">
                         <VerticalStackLayout Spacing="18">
@@ -314,12 +314,14 @@
 
                             <BoxView HeightRequest="1" Color="{StaticResource LineColor}" />
 
-                            <!-- Extract: primary action, right-aligned and content-sized so it reads as a
-                                 desktop-scale action rather than a full-width bar; Cancel sits to its left
+                            <!-- Extract: primary actions, right-aligned and content-sized so they read as
+                                 desktop-scale actions rather than a full-width bar; Cancel sits to the left
                                  during the extracting state. -->
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
                                 <Button Grid.Column="1" Text="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelExtractionCommand}" IsVisible="{Binding IsExtracting}" />
-                                <Button Grid.Column="2" Text="{Binding ExtractButtonText}" Style="{StaticResource PrimaryButton}"
+                                <Button Grid.Column="2" Text="{Binding ExtractWarButtonText}" Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding ExtractWarCommand}" IsEnabled="{Binding IsExtracting, Converter={StaticResource Invert}}" />
+                                <Button Grid.Column="3" Text="{Binding ExtractButtonText}" Style="{StaticResource PrimaryButton}"
                                         Command="{Binding ExtractCommand}" IsEnabled="{Binding IsExtracting, Converter={StaticResource Invert}}" />
                             </Grid>
                             <ProgressBar Progress="{Binding ExtractionProgress}" IsVisible="{Binding IsExtracting}" ProgressColor="{StaticResource TextColor}" />
@@ -404,7 +406,7 @@
                 <!-- ===== Export ===== -->
                 <VerticalStackLayout IsVisible="{Binding IsExport}" Spacing="16">
                     <Label Text="[ OP-05 / INTEL DEBRIEF ]" Style="{StaticResource Eyebrow}" />
-                    <Label Text="Compile weekly score summary." Style="{StaticResource H2}" />
+                    <Label Text="Compile weekly score or Canyon/Desert war score summary." Style="{StaticResource H2}" />
 
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
                         <Border Grid.Column="0" Style="{StaticResource Card}" MinimumWidthRequest="180" HorizontalOptions="Fill">
@@ -435,7 +437,12 @@
                             </HorizontalStackLayout>
                         </Border>
                     </Grid>
-                    <Button Text="Export workbook" Style="{StaticResource PrimaryButton}" Command="{Binding ExportCommand}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0" Text="Export weekly workbook" Style="{StaticResource PrimaryButton}" Command="{Binding ExportCommand}"
+                                IsEnabled="{Binding IsWarExtraction, Converter={StaticResource Invert}}" />
+                        <Button Grid.Column="1" Text="Export Canyon/Desert war workbook" Style="{StaticResource PrimaryButton}" Command="{Binding ExportWarCommand}"
+                                IsEnabled="{Binding IsWarExtraction}" />
+                    </Grid>
                     <Label Text="{Binding ExportMessage}" Style="{StaticResource Body}" IsVisible="{Binding ExportMessage, Converter={StaticResource NotEmpty}}" />
                 </VerticalStackLayout>
 

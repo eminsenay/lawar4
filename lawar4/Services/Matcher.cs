@@ -44,7 +44,16 @@ public sealed class MemberMatcher
                 _byNorm[norm] = normList = new List<Member>();
             normList.Add(m);
 
-            _nameChoices[m.MemberId] = norm;
+            var strippedNorm = TextUtil.NormalizeName(TextUtil.StripAllianceTag(m.Name));
+            if (strippedNorm.Length > 0 && strippedNorm != norm)
+            {
+                if (!_byNorm.TryGetValue(strippedNorm, out var strippedList))
+                    _byNorm[strippedNorm] = strippedList = new List<Member>();
+                if (!strippedList.Contains(m))
+                    strippedList.Add(m);
+            }
+
+            _nameChoices[m.MemberId] = strippedNorm.Length > 0 ? strippedNorm : norm;
         }
     }
 
@@ -89,6 +98,22 @@ public sealed class MemberMatcher
             return;
         }
 
+        var strippedNorm = TextUtil.NormalizeName(TextUtil.StripAllianceTag(obs.RawName));
+        if (strippedNorm.Length > 0 && strippedNorm != norm)
+        {
+            var exactStripped = _byNorm.GetValueOrDefault(strippedNorm) ?? new List<Member>();
+            if (exactStripped.Count == 1)
+            {
+                SetMatch(obs, exactStripped[0], "exact_name", 1.0);
+                return;
+            }
+            if (exactStripped.Count > 1)
+            {
+                obs.Issue = $"Normalized name '{obs.RawName}' maps to multiple active members.";
+                return;
+            }
+        }
+
         var aliasMemberId = _aliasStore.GetMemberId(norm);
         if (aliasMemberId is int aliasId)
         {
@@ -100,6 +125,20 @@ public sealed class MemberMatcher
             }
         }
 
+        if (strippedNorm.Length > 0 && strippedNorm != norm)
+        {
+            var aliasStrippedMemberId = _aliasStore.GetMemberId(strippedNorm);
+            if (aliasStrippedMemberId is int aliasStrippedId)
+            {
+                var candidates = _byId.GetValueOrDefault(aliasStrippedId) ?? new List<Member>();
+                if (candidates.Count == 1)
+                {
+                    SetMatch(obs, candidates[0], "saved_alias", 1.0);
+                    return;
+                }
+            }
+        }
+
         SetFuzzySuggestions(obs);
         obs.Issue = "No deterministic ID/name/alias match.";
     }
@@ -107,11 +146,16 @@ public sealed class MemberMatcher
     private void SetFuzzySuggestions(Observation obs)
     {
         var norm = TextUtil.NormalizeName(obs.RawName);
+        var strippedNorm = TextUtil.NormalizeName(TextUtil.StripAllianceTag(obs.RawName));
         var fuzzy = new List<Alternative>();
-        if (norm.Length > 0)
+        if (norm.Length > 0 || strippedNorm.Length > 0)
         {
             var scored = _nameChoices
-                .Select(kv => (Score: TextUtil.SequenceRatio(norm, kv.Value), MemberId: kv.Key))
+                .Select(kv => (
+                    Score: Math.Max(
+                        norm.Length > 0 ? TextUtil.SequenceRatio(norm, kv.Value) : 0,
+                        strippedNorm.Length > 0 ? TextUtil.SequenceRatio(strippedNorm, kv.Value) : 0),
+                    MemberId: kv.Key))
                 .OrderByDescending(x => x.Score)
                 .ThenByDescending(x => x.MemberId)
                 .Take(3);
@@ -265,6 +309,7 @@ public static class WeeklyBuilder
     {
         var issues = new List<string>(baseIssues ?? new List<string>());
         var scores = new Dictionary<(int, string), int>();
+        var ranks = new Dictionary<(int, string), int>();
         var grouped = new Dictionary<(int, string), List<Observation>>();
 
         foreach (var obs in observations)
@@ -283,7 +328,9 @@ public static class WeeklyBuilder
         foreach (var (key, group) in grouped)
         {
             var values = group.Select(o => o.Points).Distinct().OrderBy(v => v).ToList();
-            scores[key] = values.Max();
+            var best = values.Max();
+            scores[key] = best;
+            ranks[key] = group.First(o => o.Points == best).Rank;
             if (values.Count > 1)
             {
                 var (memberId, day) = key;
@@ -306,6 +353,6 @@ public static class WeeklyBuilder
             missingByDay[day] = members.Where(m => !matchedIds.Contains(m.MemberId)).ToList();
         }
 
-        return new WeeklyData(observations, scores, issues, missingByDay);
+        return new WeeklyData(observations, scores, ranks, issues, missingByDay);
     }
 }

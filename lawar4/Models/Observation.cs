@@ -31,17 +31,20 @@ public sealed class WeeklyData
     public WeeklyData(
         List<Observation> observations,
         Dictionary<(int MemberId, string Day), int> scores,
+        Dictionary<(int MemberId, string Day), int> ranks,
         List<string> issues,
         Dictionary<string, List<Member>> missingByDay)
     {
         Observations = observations;
         Scores = scores;
+        Ranks = ranks;
         Issues = issues;
         MissingByDay = missingByDay;
     }
 
     public List<Observation> Observations { get; }
     public Dictionary<(int MemberId, string Day), int> Scores { get; }
+    public Dictionary<(int MemberId, string Day), int> Ranks { get; }
     public List<string> Issues { get; }
     public Dictionary<string, List<Member>> MissingByDay { get; }
 }

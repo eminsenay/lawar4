@@ -47,6 +47,7 @@ public sealed class WorkflowService
     public List<string> MemberWarnings { get; private set; } = new();
     public List<string> ScreenshotPaths { get; private set; } = new();
     public List<ExtractionResult> ExtractionResults { get; private set; } = new();
+    public ExtractionMode LastExtractionMode { get; private set; } = ExtractionMode.Weekly;
     public List<Observation> Observations { get; private set; } = new();
     public List<string> BaseIssues { get; private set; } = new();
 
@@ -275,7 +276,7 @@ public sealed class WorkflowService
     }
 
     // --- Extraction ---
-    public async Task StartExtractionAsync(IProgress<ExtractionProgressUpdate> progress, string apiKey)
+    public async Task StartExtractionAsync(IProgress<ExtractionProgressUpdate> progress, string apiKey, ExtractionMode mode = ExtractionMode.Weekly)
     {
         if (IsExtracting)
             throw new InvalidOperationException("An extraction is already running");
@@ -284,6 +285,7 @@ public sealed class WorkflowService
         if (ScreenshotPaths.Count == 0)
             throw new InvalidOperationException("Add screenshots before extracting");
 
+        LastExtractionMode = mode;
         var paths = new List<string>(ScreenshotPaths);
         ExtractionResults = new List<ExtractionResult>();
         Observations = new List<Observation>();
@@ -297,7 +299,7 @@ public sealed class WorkflowService
             var uncached = new List<string>();
             foreach (var path in paths)
             {
-                var raw = Config.UseCache ? _extractionCache.Get(CacheKey(path)) : null;
+                var raw = Config.UseCache ? _extractionCache.Get(CacheKey(path, mode)) : null;
                 if (raw is not null)
                 {
                     try
@@ -338,6 +340,7 @@ public sealed class WorkflowService
                     ApiKey = apiKey,
                     ApiStyle = Config.ApiStyle,
                     RequestsPerMinute = Config.RequestsPerMinute,
+                    Mode = mode,
                 };
 
                 await _extractor.ExtractManyAsync(uncached, config, (_, _, result) =>
@@ -345,7 +348,7 @@ public sealed class WorkflowService
                     completed++;
                     freshByPath[result.ImagePath] = result;
                     if (result.Extraction is not null && result.Error is null)
-                        _extractionCache.Put(CacheKey(result.ImagePath), result.FileName, JsonSerializer.Serialize(result.Extraction));
+                        _extractionCache.Put(CacheKey(result.ImagePath, mode), result.FileName, JsonSerializer.Serialize(result.Extraction));
                     progress.Report(new ExtractionProgressUpdate(
                         completed, paths.Count, result.ImagePath, false, result.Error,
                         result.Extraction?.DetectedDay, result.Extraction?.Rows.Count ?? 0));
@@ -397,6 +400,8 @@ public sealed class WorkflowService
             throw new InvalidOperationException("Load members before exporting");
         if (Observations.Count == 0)
             throw new InvalidOperationException("Extract screenshots before exporting");
+        if (LastExtractionMode != ExtractionMode.Weekly)
+            throw new InvalidOperationException("The current observations came from a war extraction. Use the war workbook export instead.");
 
         var path = Path.GetFullPath(outputPath);
         if (!string.Equals(Path.GetExtension(path), ".xlsx", StringComparison.OrdinalIgnoreCase))
@@ -407,7 +412,25 @@ public sealed class WorkflowService
         return path;
     }
 
-    private string CacheKey(string path)
+    public async Task<string> ExportWarAsync(string outputPath)
+    {
+        if (Members.Count == 0)
+            throw new InvalidOperationException("Load members before exporting");
+        if (Observations.Count == 0)
+            throw new InvalidOperationException("Extract war screenshots before exporting");
+        if (LastExtractionMode != ExtractionMode.War)
+            throw new InvalidOperationException("The current observations came from a weekly extraction. Use the weekly workbook export instead.");
+
+        var path = Path.GetFullPath(outputPath);
+        if (!string.Equals(Path.GetExtension(path), ".xlsx", StringComparison.OrdinalIgnoreCase))
+            path = Path.ChangeExtension(path, ".xlsx");
+
+        var weekly = WeeklyBuilder.Build(Observations, Members, BaseIssues);
+        await Task.Run(() => ExcelExporter.ExportWarWorkbook(path, Members, weekly, _aliasStore, MemberSource)).ConfigureAwait(false);
+        return path;
+    }
+
+    private string CacheKey(string path, ExtractionMode mode)
     {
         using var sha = SHA256.Create();
         var bytes = new List<byte>();
@@ -415,7 +438,7 @@ public sealed class WorkflowService
         bytes.AddRange(Encoding.UTF8.GetBytes(Config.Model));
         bytes.AddRange(Encoding.UTF8.GetBytes(Config.BaseUrl));
         bytes.AddRange(Encoding.ASCII.GetBytes(Config.ApiStyle));
-        bytes.AddRange(Encoding.ASCII.GetBytes(ExtractionPrompt.CacheVersion));
+        bytes.AddRange(Encoding.ASCII.GetBytes(mode == ExtractionMode.War ? ExtractionPrompt.WarCacheVersion : ExtractionPrompt.CacheVersion));
         return Convert.ToHexString(sha.ComputeHash(bytes.ToArray())).ToLowerInvariant();
     }
 

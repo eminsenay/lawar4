@@ -12,6 +12,8 @@ public static class ExcelExporter
     private const string StaticFont = "#666666";
     private const string ReviewFill = "#FCE4D6";
 
+    private static readonly string[] WarDayOrder = { "desert_storm", "canyon_storm", "unknown" };
+
     public static void ExportWeeklyWorkbook(
         string path,
         List<Member> members,
@@ -21,7 +23,31 @@ public static class ExcelExporter
     {
         using var wb = new XLWorkbook();
 
-        BuildWeeklyScores(wb, members, weekly);
+        BuildScoresSheet(wb, "Weekly Scores", TextUtil.DayOrder, members, weekly);
+        BuildObservations(wb, weekly);
+        BuildIssues(wb, weekly);
+        BuildAliases(wb, aliasStore);
+        BuildRunInfo(wb, members, weekly, memberSource);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        wb.SaveAs(path);
+    }
+
+    public static void ExportWarWorkbook(
+        string path,
+        List<Member> members,
+        WeeklyData weekly,
+        AliasStore aliasStore,
+        string memberSource)
+    {
+        using var wb = new XLWorkbook();
+
+        var days = weekly.MissingByDay.Keys
+            .OrderBy(d => Array.IndexOf(WarDayOrder, d) is var i && i >= 0 ? i : 99)
+            .ThenBy(d => d, StringComparer.Ordinal)
+            .ToList();
+
+        BuildScoresSheet(wb, "War Scores", days, members, weekly, includeRanks: true);
         BuildObservations(wb, weekly);
         BuildIssues(wb, weekly);
         BuildAliases(wb, aliasStore);
@@ -46,19 +72,26 @@ public static class ExcelExporter
     private static void AutoWidth(IXLWorksheet ws, double minWidth = 10, double maxWidth = 44)
         => ws.Columns().AdjustToContents(minWidth, maxWidth);
 
-    private static void BuildWeeklyScores(XLWorkbook wb, List<Member> members, WeeklyData weekly)
+    private static void BuildScoresSheet(XLWorkbook wb, string sheetName, IReadOnlyList<string> dayOrder, List<Member> members, WeeklyData weekly, bool includeRanks = false)
     {
-        var ws = wb.AddWorksheet("Weekly Scores");
+        var ws = wb.AddWorksheet(sheetName);
         ws.ShowGridLines = false;
 
         var headers = new List<string> { "ID", "Player" };
-        headers.AddRange(TextUtil.DayOrder.Select(TitleCase));
+        foreach (var day in dayOrder)
+        {
+            var label = FormatDayLabel(day);
+            headers.Add(includeRanks ? $"{label} Points" : label);
+            if (includeRanks)
+                headers.Add($"{label} Rank");
+        }
         for (int i = 0; i < headers.Count; i++)
             ws.Cell(1, i + 1).Value = headers[i];
         StyleHeader(ws, 1, headers.Count);
         ws.SheetView.FreezeRows(1);
         ws.SheetView.FreezeColumns(2);
 
+        int columnsPerDay = includeRanks ? 2 : 1;
         int row = 2;
         foreach (var member in members.OrderBy(m => m.MemberId))
         {
@@ -66,13 +99,21 @@ public static class ExcelExporter
             ws.Cell(row, 2).Value = member.Name;
             ws.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml(StaticFont);
             ws.Cell(row, 2).Style.Font.FontColor = XLColor.FromHtml(StaticFont);
-            for (int d = 0; d < TextUtil.DayOrder.Length; d++)
+            for (int d = 0; d < dayOrder.Count; d++)
             {
-                if (weekly.Scores.TryGetValue((member.MemberId, TextUtil.DayOrder[d]), out var points))
+                var key = (member.MemberId, dayOrder[d]);
+                int baseCol = 3 + d * columnsPerDay;
+                if (weekly.Scores.TryGetValue(key, out var points))
                 {
-                    var cell = ws.Cell(row, 3 + d);
+                    var cell = ws.Cell(row, baseCol);
                     cell.Value = points;
                     cell.Style.NumberFormat.Format = "#,##0";
+                    cell.Style.Font.FontColor = XLColor.FromHtml(ImportedFont);
+                }
+                if (includeRanks && weekly.Ranks.TryGetValue(key, out var rank))
+                {
+                    var cell = ws.Cell(row, baseCol + 1);
+                    cell.Value = rank;
                     cell.Style.Font.FontColor = XLColor.FromHtml(ImportedFont);
                 }
             }
@@ -151,7 +192,7 @@ public static class ExcelExporter
             foreach (var member in missing)
             {
                 ws.Cell(row, 1).Value = "Missing player";
-                ws.Cell(row, 2).Value = $"{TitleCase(day)}: {member.MemberId} - {member.Name}";
+                ws.Cell(row, 2).Value = $"{FormatDayLabel(day)}: {member.MemberId} - {member.Name}";
                 row++;
             }
         }
@@ -196,4 +237,12 @@ public static class ExcelExporter
 
     private static string TitleCase(string day) =>
         day.Length == 0 ? day : char.ToUpperInvariant(day[0]) + day[1..];
+
+    private static string FormatDayLabel(string day) => day switch
+    {
+        "desert_storm" => "Desert Storm",
+        "canyon_storm" => "Canyon Storm",
+        "unknown" => "Unknown",
+        _ => TitleCase(day),
+    };
 }

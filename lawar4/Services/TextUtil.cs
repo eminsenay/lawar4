@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace lawar4.Services;
 
@@ -7,6 +8,14 @@ public static class TextUtil
 {
     public static readonly string[] DayOrder =
         { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday" };
+
+    /// <summary>Strips leading bracketed or parenthesized alliance tag prefix like [EfC], 【EfC】, (EfC), {EfC}.</summary>
+    public static string StripAllianceTag(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return name ?? "";
+        return Regex.Replace(name, @"^(\[[^\]]*\]|\【[^\】]*\】|\([^\)]*\)|\{[^\}]*\})\s*", "").Trim();
+    }
 
     /// <summary>NFKC normalize, casefold, map dotless-i to i, keep only alphanumerics.</summary>
     public static string NormalizeName(string value)

@@ -16,6 +16,7 @@ public sealed class ExtractionConfig
     public required string ApiKey { get; init; }
     public required string ApiStyle { get; init; }
     public required int RequestsPerMinute { get; init; }
+    public ExtractionMode Mode { get; init; } = ExtractionMode.Weekly;
 }
 
 /// <summary>Screenshot extraction orchestration ported from extractor.py.</summary>
@@ -38,7 +39,7 @@ public sealed class ExtractorService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var path = imagePaths[index];
-            var result = await RunAttemptOnceAsync(backend, config.Model, path, config.ApiStyle, limiter, cancellationToken)
+            var result = await RunAttemptOnceAsync(backend, config.Model, path, config.ApiStyle, config.Mode, limiter, cancellationToken)
                 .ConfigureAwait(false);
             results.Add(result);
             progress?.Invoke(index + 1, imagePaths.Count, result);
@@ -47,12 +48,12 @@ public sealed class ExtractorService
     }
 
     private async Task<ExtractionResult> RunAttemptOnceAsync(
-        IExtractionBackend backend, string model, string path, string apiStyle,
+        IExtractionBackend backend, string model, string path, string apiStyle, ExtractionMode mode,
         RequestRateLimiter limiter, CancellationToken ct)
     {
         try
         {
-            var extraction = await ExtractOneAsync(backend, model, path, apiStyle, limiter, ct).ConfigureAwait(false);
+            var extraction = await ExtractOneAsync(backend, model, path, apiStyle, mode, limiter, ct).ConfigureAwait(false);
             return new ExtractionResult(path, extraction, null);
         }
         catch (OperationCanceledException)
@@ -63,7 +64,7 @@ public sealed class ExtractorService
         {
             try
             {
-                var extraction = await ExtractOneAsync(backend, model, path, apiStyle, limiter, ct).ConfigureAwait(false);
+                var extraction = await ExtractOneAsync(backend, model, path, apiStyle, mode, limiter, ct).ConfigureAwait(false);
                 return new ExtractionResult(path, extraction, null);
             }
             catch (OperationCanceledException)
@@ -78,7 +79,7 @@ public sealed class ExtractorService
     }
 
     public async Task<ScreenshotExtraction> ExtractOneAsync(
-        IExtractionBackend backend, string model, string imagePath, string apiStyle,
+        IExtractionBackend backend, string model, string imagePath, string apiStyle, ExtractionMode mode,
         RequestRateLimiter limiter, CancellationToken ct, int maxAttempts = 4)
     {
         var dataUrl = EncodeImageAsDataUrl(imagePath);
@@ -89,8 +90,8 @@ public sealed class ExtractorService
             await limiter.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                var outputText = await backend.CreateAsync(model, dataUrl, apiStyle, ct).ConfigureAwait(false);
-                return ParseAndValidate(outputText, Path.GetFileName(imagePath));
+                var outputText = await backend.CreateAsync(model, dataUrl, apiStyle, mode, ct).ConfigureAwait(false);
+                return ParseAndValidate(outputText, Path.GetFileName(imagePath), mode);
             }
             catch (OperationCanceledException)
             {
@@ -116,7 +117,7 @@ public sealed class ExtractorService
         ["thursday"] = 4, ["friday"] = 5, ["saturday"] = 6,
     };
 
-    private static ScreenshotExtraction ParseAndValidate(string outputText, string fileName)
+    private static ScreenshotExtraction ParseAndValidate(string outputText, string fileName, ExtractionMode mode)
     {
         JsonNode? root;
         try
@@ -131,7 +132,7 @@ public sealed class ExtractorService
         if (root is not JsonObject payload)
             throw new InvalidOperationException($"Model returned non-object JSON for {fileName}.");
 
-        SanitizePayload(payload);
+        SanitizePayload(payload, mode);
 
         ScreenshotExtraction? extraction;
         try
@@ -161,7 +162,7 @@ public sealed class ExtractorService
         }
     }
 
-    private static void SanitizePayload(JsonObject payload)
+    private static void SanitizePayload(JsonObject payload, ExtractionMode mode)
     {
         if (payload["warnings"] is not JsonArray warnings)
         {
@@ -179,24 +180,32 @@ public sealed class ExtractorService
         }
         else if (conf > 1.0)
         {
-            var day = (payload["detected_day"]?.ToString() ?? "").ToLowerInvariant();
-            DayIndex.TryGetValue(day, out int expectedIndex);
-            if (conf == Math.Floor(conf) && conf >= 1 && conf <= 6)
+            if (mode == ExtractionMode.Weekly)
             {
-                double normalized;
-                string reason;
-                if (expectedIndex == (int)conf)
+                var day = (payload["detected_day"]?.ToString() ?? "").ToLowerInvariant();
+                DayIndex.TryGetValue(day, out int expectedIndex);
+                if (conf == Math.Floor(conf) && conf >= 1 && conf <= 6)
                 {
-                    normalized = 1.0;
-                    reason = "weekday index matching detected_day";
+                    double normalized;
+                    string reason;
+                    if (expectedIndex == (int)conf)
+                    {
+                        normalized = 1.0;
+                        reason = "weekday index matching detected_day";
+                    }
+                    else
+                    {
+                        normalized = 0.0;
+                        reason = "weekday index conflicting with detected_day";
+                    }
+                    warnings.Add($"day_confidence {rawConf} looked like a {reason}; normalized to {normalized:0.0}.");
+                    conf = normalized;
                 }
                 else
                 {
-                    normalized = 0.0;
-                    reason = "weekday index conflicting with detected_day";
+                    warnings.Add($"day_confidence {rawConf} was outside 0..1; clamped to 1.0.");
+                    conf = 1.0;
                 }
-                warnings.Add($"day_confidence {rawConf} looked like a {reason}; normalized to {normalized:0.0}.");
-                conf = normalized;
             }
             else
             {
@@ -216,15 +225,15 @@ public sealed class ExtractorService
             int i = 1;
             foreach (var row in rows)
             {
-                SanitizeRow(row as JsonObject, $"row {i}", warnings);
+                SanitizeRow(row as JsonObject, $"row {i}", warnings, mode);
                 i++;
             }
         }
         if (payload["pinned_row"] is JsonObject pinned)
-            SanitizeRow(pinned, "pinned_row", warnings);
+            SanitizeRow(pinned, "pinned_row", warnings, mode);
     }
 
-    private static void SanitizeRow(JsonObject? row, string label, JsonArray warnings)
+    private static void SanitizeRow(JsonObject? row, string label, JsonArray warnings, ExtractionMode mode)
     {
         if (row is null)
             return;
@@ -235,15 +244,18 @@ public sealed class ExtractorService
         var allianceName = allianceNode?.ToString();
         bool allianceIsString = allianceNode is JsonValue av && av.TryGetValue<string>(out _);
 
-        if (LooksLikeAllianceText(rawName) && allianceIsString && !LooksLikeAllianceText(allianceName))
+        if (mode == ExtractionMode.Weekly)
         {
-            row["raw_name"] = allianceName;
-            row["alliance_name"] = rawName;
-            warnings.Add($"{label}: swapped player/alliance text lines returned by the model.");
-        }
-        else if (LooksLikeAllianceText(rawName))
-        {
-            warnings.Add($"{label}: raw_name still looks like alliance/role text; player name could not be recovered automatically.");
+            if (LooksLikeAllianceText(rawName) && allianceIsString && !LooksLikeAllianceText(allianceName))
+            {
+                row["raw_name"] = allianceName;
+                row["alliance_name"] = rawName;
+                warnings.Add($"{label}: swapped player/alliance text lines returned by the model.");
+            }
+            else if (LooksLikeAllianceText(rawName))
+            {
+                warnings.Add($"{label}: raw_name still looks like alliance/role text; player name could not be recovered automatically.");
+            }
         }
     }
 
@@ -340,7 +352,7 @@ public sealed class ExtractorService
 
 public interface IExtractionBackend
 {
-    Task<string> CreateAsync(string model, string dataUrl, string apiStyle, CancellationToken ct);
+    Task<string> CreateAsync(string model, string dataUrl, string apiStyle, ExtractionMode mode, CancellationToken ct);
 }
 
 public sealed class ExtractionHttpException : Exception
@@ -367,16 +379,20 @@ public sealed class HttpExtractionBackend : IExtractionBackend
         _apiKey = apiKey;
     }
 
-    public async Task<string> CreateAsync(string model, string dataUrl, string apiStyle, CancellationToken ct)
+    public async Task<string> CreateAsync(string model, string dataUrl, string apiStyle, ExtractionMode mode, CancellationToken ct)
     {
         return apiStyle == "responses"
-            ? await CreateResponsesAsync(model, dataUrl, ct).ConfigureAwait(false)
-            : await CreateChatAsync(model, dataUrl, ct).ConfigureAwait(false);
+            ? await CreateResponsesAsync(model, dataUrl, mode, ct).ConfigureAwait(false)
+            : await CreateChatAsync(model, dataUrl, mode, ct).ConfigureAwait(false);
     }
 
-    private async Task<string> CreateChatAsync(string model, string dataUrl, CancellationToken ct)
+    private async Task<string> CreateChatAsync(string model, string dataUrl, ExtractionMode mode, CancellationToken ct)
     {
-        var schema = JsonNode.Parse(ExtractionPrompt.SchemaJson);
+        var promptText = mode == ExtractionMode.War ? ExtractionPrompt.WarPrompt : ExtractionPrompt.Prompt;
+        var schemaName = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaName : ExtractionPrompt.SchemaName;
+        var schemaJson = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaJson : ExtractionPrompt.SchemaJson;
+        var schema = JsonNode.Parse(schemaJson);
+
         var body = new JsonObject
         {
             ["model"] = model,
@@ -387,7 +403,7 @@ public sealed class HttpExtractionBackend : IExtractionBackend
                     ["role"] = "user",
                     ["content"] = new JsonArray
                     {
-                        new JsonObject { ["type"] = "text", ["text"] = ExtractionPrompt.Prompt },
+                        new JsonObject { ["type"] = "text", ["text"] = promptText },
                         new JsonObject
                         {
                             ["type"] = "image_url",
@@ -401,7 +417,7 @@ public sealed class HttpExtractionBackend : IExtractionBackend
                 ["type"] = "json_schema",
                 ["json_schema"] = new JsonObject
                 {
-                    ["name"] = ExtractionPrompt.SchemaName,
+                    ["name"] = schemaName,
                     ["strict"] = true,
                     ["schema"] = schema,
                 },
@@ -413,9 +429,13 @@ public sealed class HttpExtractionBackend : IExtractionBackend
             ?? throw new InvalidOperationException("Chat response missing message content.");
     }
 
-    private async Task<string> CreateResponsesAsync(string model, string dataUrl, CancellationToken ct)
+    private async Task<string> CreateResponsesAsync(string model, string dataUrl, ExtractionMode mode, CancellationToken ct)
     {
-        var schema = JsonNode.Parse(ExtractionPrompt.SchemaJson);
+        var promptText = mode == ExtractionMode.War ? ExtractionPrompt.WarPrompt : ExtractionPrompt.Prompt;
+        var schemaName = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaName : ExtractionPrompt.SchemaName;
+        var schemaJson = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaJson : ExtractionPrompt.SchemaJson;
+        var schema = JsonNode.Parse(schemaJson);
+
         var body = new JsonObject
         {
             ["model"] = model,
@@ -426,7 +446,7 @@ public sealed class HttpExtractionBackend : IExtractionBackend
                     ["role"] = "user",
                     ["content"] = new JsonArray
                     {
-                        new JsonObject { ["type"] = "input_text", ["text"] = ExtractionPrompt.Prompt },
+                        new JsonObject { ["type"] = "input_text", ["text"] = promptText },
                         new JsonObject { ["type"] = "input_image", ["image_url"] = dataUrl, ["detail"] = "high" },
                     },
                 },
@@ -436,7 +456,7 @@ public sealed class HttpExtractionBackend : IExtractionBackend
                 ["format"] = new JsonObject
                 {
                     ["type"] = "json_schema",
-                    ["name"] = ExtractionPrompt.SchemaName,
+                    ["name"] = schemaName,
                     ["strict"] = true,
                     ["schema"] = schema,
                 },
@@ -519,18 +539,22 @@ public sealed class OpenAiSdkChatBackend : IExtractionBackend
         _client = new ChatClient(model, new ApiKeyCredential(apiKey), options);
     }
 
-    public async Task<string> CreateAsync(string model, string dataUrl, string apiStyle, CancellationToken ct)
+    public async Task<string> CreateAsync(string model, string dataUrl, string apiStyle, ExtractionMode mode, CancellationToken ct)
     {
+        var promptText = mode == ExtractionMode.War ? ExtractionPrompt.WarPrompt : ExtractionPrompt.Prompt;
+        var schemaName = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaName : ExtractionPrompt.SchemaName;
+        var schemaJson = mode == ExtractionMode.War ? ExtractionPrompt.WarSchemaJson : ExtractionPrompt.SchemaJson;
+
         var (mediaType, bytes) = DecodeDataUrl(dataUrl);
         var userMessage = new UserChatMessage(
-            ChatMessageContentPart.CreateTextPart(ExtractionPrompt.Prompt),
+            ChatMessageContentPart.CreateTextPart(promptText),
             ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(bytes), mediaType, ChatImageDetailLevel.High));
 
         var options = new ChatCompletionOptions
         {
             ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
-                ExtractionPrompt.SchemaName,
-                BinaryData.FromString(ExtractionPrompt.SchemaJson),
+                schemaName,
+                BinaryData.FromString(schemaJson),
                 jsonSchemaIsStrict: true),
         };
 
