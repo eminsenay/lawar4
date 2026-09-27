@@ -72,6 +72,9 @@ public static class ExcelExporter
     private static void AutoWidth(IXLWorksheet ws, double minWidth = 10, double maxWidth = 44)
         => ws.Columns().AdjustToContents(minWidth, maxWidth);
 
+    /// <summary>Enables Excel's column-header filter dropdowns over the sheet's used range.</summary>
+    private static void ApplyAutoFilter(IXLWorksheet ws) => ws.RangeUsed()?.SetAutoFilter();
+
     private static void BuildScoresSheet(XLWorkbook wb, string sheetName, IReadOnlyList<string> dayOrder, List<Member> members, WeeklyData weekly, bool includeRanks = false)
     {
         var ws = wb.AddWorksheet(sheetName);
@@ -119,6 +122,7 @@ public static class ExcelExporter
             }
             row++;
         }
+        ApplyAutoFilter(ws);
         AutoWidth(ws);
     }
 
@@ -167,6 +171,7 @@ public static class ExcelExporter
             }
             row++;
         }
+        ApplyAutoFilter(ws);
         AutoWidth(ws);
     }
 
@@ -196,6 +201,7 @@ public static class ExcelExporter
                 row++;
             }
         }
+        ApplyAutoFilter(ws);
         AutoWidth(ws, maxWidth: 90);
     }
 
@@ -214,6 +220,7 @@ public static class ExcelExporter
             ws.Cell(row, 2).Value = memberId;
             row++;
         }
+        ApplyAutoFilter(ws);
         AutoWidth(ws);
     }
 
