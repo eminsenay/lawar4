@@ -350,7 +350,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     // --- Screenshots ---
-    public ObservableCollection<string> ScreenshotQueue { get; } = new();
+    public ObservableCollection<ScreenshotQueueItem> ScreenshotQueue { get; } = new();
 
     [ObservableProperty] private string _pastedPaths = "";
     [ObservableProperty] private string _extractionMessage = "";
@@ -359,6 +359,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _extractButtonText = "Extract weekly scores";
     [ObservableProperty] private string _extractWarButtonText = "Extract Canyon/Desert war scores";
     [ObservableProperty] private bool _showManualPaths;
+
+    [NotifyCanExecuteChangedFor(nameof(RemoveSelectedScreenshotsCommand))]
+    [ObservableProperty] private bool _hasSelectedScreenshots;
 
     public string ManualPathsToggleLabel => ShowManualPaths ? "▾ Advanced / Manual file paths" : "▸ Advanced / Manual file paths";
 
@@ -413,12 +416,76 @@ public partial class MainViewModel : ObservableObject
 
     private void RefreshQueue()
     {
+        foreach (var item in ScreenshotQueue)
+            item.PropertyChanged -= OnScreenshotItemPropertyChanged;
         ScreenshotQueue.Clear();
         foreach (var path in _service.ScreenshotPaths)
-            ScreenshotQueue.Add(Path.GetFileName(path));
+        {
+            var item = new ScreenshotQueueItem(path);
+            item.PropertyChanged += OnScreenshotItemPropertyChanged;
+            ScreenshotQueue.Add(item);
+        }
         ExtractButtonText = $"Extract weekly scores ({_service.ScreenshotPaths.Count})";
         ExtractWarButtonText = $"Extract Canyon/Desert war scores ({_service.ScreenshotPaths.Count})";
+        HasSelectedScreenshots = false;
         RaiseSummary();
+    }
+
+    private void OnScreenshotItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScreenshotQueueItem.IsSelected))
+            HasSelectedScreenshots = ScreenshotQueue.Any(i => i.IsSelected);
+    }
+
+    /// <summary>Removes a single queued screenshot so a subsequent extraction skips it.</summary>
+    [RelayCommand]
+    private void RemoveScreenshot(ScreenshotQueueItem item)
+    {
+        try
+        {
+            _service.RemoveScreenshots(new[] { item.FullPath });
+            RefreshQueue();
+            ExtractionMessage = "";
+        }
+        catch (Exception ex)
+        {
+            ExtractionMessage = ex.Message;
+        }
+    }
+
+    /// <summary>Removes every checked screenshot from the queue.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedScreenshots))]
+    private void RemoveSelectedScreenshots()
+    {
+        var paths = ScreenshotQueue.Where(i => i.IsSelected).Select(i => i.FullPath).ToList();
+        if (paths.Count == 0)
+            return;
+        try
+        {
+            _service.RemoveScreenshots(paths);
+            RefreshQueue();
+            ExtractionMessage = "";
+        }
+        catch (Exception ex)
+        {
+            ExtractionMessage = ex.Message;
+        }
+    }
+
+    /// <summary>Removes every queued screenshot.</summary>
+    [RelayCommand]
+    private void ClearScreenshots()
+    {
+        try
+        {
+            _service.ClearScreenshots();
+            RefreshQueue();
+            ExtractionMessage = "";
+        }
+        catch (Exception ex)
+        {
+            ExtractionMessage = ex.Message;
+        }
     }
 
     [RelayCommand]

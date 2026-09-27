@@ -275,6 +275,27 @@ public sealed class WorkflowService
         BaseIssues = new List<string>();
     }
 
+    /// <summary>Removes one or more queued screenshots (by full path) so extraction skips them. Also drops any
+    /// already-extracted results/observations for those paths, so a re-extraction never resurrects them.</summary>
+    public void RemoveScreenshots(IEnumerable<string> paths)
+    {
+        if (IsExtracting)
+            throw new InvalidOperationException("Cancel extraction before removing screenshots");
+        var toRemove = new HashSet<string>(paths.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
+        if (toRemove.Count == 0)
+            return;
+
+        ScreenshotPaths = ScreenshotPaths.Where(p => !toRemove.Contains(p)).ToList();
+
+        if (ExtractionResults.Count > 0)
+        {
+            ExtractionResults = ExtractionResults
+                .Where(r => !toRemove.Contains(Path.GetFullPath(r.ImagePath)))
+                .ToList();
+            RebuildMatches();
+        }
+    }
+
     // --- Extraction ---
     public async Task StartExtractionAsync(IProgress<ExtractionProgressUpdate> progress, string apiKey, ExtractionMode mode = ExtractionMode.Weekly)
     {

@@ -295,16 +295,29 @@
                             </Border>
 
                             <!-- Review: queued screenshots -->
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="QUEUED SCREENSHOTS" Style="{StaticResource FieldLabel}" VerticalOptions="Center" />
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                <Label Grid.Column="0" Text="QUEUED SCREENSHOTS" Style="{StaticResource FieldLabel}" VerticalOptions="Center" />
                                 <Label Grid.Column="1" Text="{Binding ScreenshotQueue.Count, StringFormat='{0} screenshots queued'}" Style="{StaticResource Body}" VerticalOptions="Center"
                                        IsVisible="{Binding ScreenshotQueue.Count, Converter={StaticResource CountToBool}}" />
+                                <Button Grid.Column="2" Text="Remove selected" Style="{StaticResource CompactButton}"
+                                        Command="{Binding RemoveSelectedScreenshotsCommand}"
+                                        IsVisible="{Binding ScreenshotQueue.Count, Converter={StaticResource CountToBool}}" />
+                                <Button Grid.Column="3" Text="Clear all" Style="{StaticResource CompactButton}"
+                                        Command="{Binding ClearScreenshotsCommand}"
+                                        IsVisible="{Binding ScreenshotQueue.Count, Converter={StaticResource CountToBool}}" />
                             </Grid>
-                            <ScrollView MaximumHeightRequest="140" IsVisible="{Binding ScreenshotQueue.Count, Converter={StaticResource CountToBool}}">
+                            <ScrollView MaximumHeightRequest="180" IsVisible="{Binding ScreenshotQueue.Count, Converter={StaticResource CountToBool}}">
                                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding ScreenshotQueue}" Spacing="6">
                                     <BindableLayout.ItemTemplate>
-                                        <DataTemplate x:DataType="x:String">
-                                            <Label Text="{Binding .}" FontFamily="Consolas" FontSize="12" TextColor="{StaticResource Muted2}" />
+                                        <DataTemplate x:DataType="vm:ScreenshotQueueItem">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" VerticalOptions="Center" />
+                                                <Label Grid.Column="1" Text="{Binding FileName}" FontFamily="Consolas" FontSize="12" TextColor="{StaticResource Muted2}"
+                                                       VerticalOptions="Center" LineBreakMode="MiddleTruncation" />
+                                                <Button Grid.Column="2" Text="✕" Style="{StaticResource CompactButton}" Padding="8,2" VerticalOptions="Center"
+                                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.RemoveScreenshotCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                            </Grid>
                                         </DataTemplate>
                                     </BindableLayout.ItemTemplate>
                                 </VerticalStackLayout>
